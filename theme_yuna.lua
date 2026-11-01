@@ -43,6 +43,9 @@ local yuna = {}
 yuna.DEFAULTS = T{
     -- the Default theme's look settings, with YunaUI's values
     bar_height         = 2,
+    bar_length         = 100,          -- % of the row's width
+    bar_offset_x       = 0,
+    bar_offset_y       = 0,
     bar_border_visible = false,
     bar_border_color   = 0xEB000000,
     thresholds         = T{ t75 = 30, t50 = 20, t25 = 10 },
@@ -59,6 +62,8 @@ yuna.DEFAULTS = T{
     name_font_offset_y = 0,
     timer_font_offset_x = 0,
     timer_font_offset_y = 0,
+    name_align         = 'left',       -- where the name sits in its row: 'left', 'center' or 'right'
+    time_align         = 'right',      -- the countdown, the same
     enable_icons       = false,
     icon_scale         = 1.0,          -- of the row's height
     icon_offset_x      = 0,
@@ -71,6 +76,7 @@ yuna.DEFAULTS = T{
     row_gap            = 2,            -- px between one row's bar and the next row's name
     color_mode         = 'type',       -- 'type': by kind of timer (kinds), 'time': by time left (thresholds / colors)
     effects            = true,         -- the bar's flowing colours, sheen and breathing glow
+    dot_blink          = true,         -- the dot at a thin bar's end blinks with the countdown near the end
     kinds              = T{            -- sp/ja/ma are YunaUI's own (one-hours, abilities, spells)
         sp     = T{ 1.00, 0.45, 0.75 },
         ja     = T{ 1.00, 0.85, 0.45 },
@@ -320,7 +326,7 @@ end
 
 -- The Damage Meter's bar (YunaVEXP, YunaHEX): a thin line fading from c1 to c2 in a soft halo,
 -- with a white dot at its end (it breathes when effects are on)
-local function thin_bar(dl, x, y, w, h, v, c1, c2, fx)
+local function thin_bar(dl, x, y, w, h, v, c1, c2, fx, dot_a)
     v = math.max(0, math.min(1, v or 0))
     RF(dl, x, y, x + w, y + h, U4(0.05, 0.04, 0.07, 0.70), h / 2)
     if v <= 0 then return end
@@ -330,7 +336,7 @@ local function thin_bar(dl, x, y, w, h, v, c1, c2, fx)
     if not pcall(RFM, dl, x, y, x + fw, y + h, a, b, b, a) then RF(dl, x, y, x + fw, y + h, b, h / 2) end
     local pulse = fx and (0.75 + 0.25 * math.sin(os.clock() * 3)) or 1
     CF(dl, x + fw, y + h / 2, math.max(4.5, h * 1.5), U4(c1[1], c1[2], c1[3], 0.30 * pulse))
-    CF(dl, x + fw, y + h / 2, math.max(2.2, h * 0.75), U4(1, 1, 1, 1))
+    CF(dl, x + fw, y + h / 2, math.max(2.2, h * 0.75), U4(1, 1, 1, dot_a or 1))
 end
 
 -- Vex's HP / MP bar (YunaVEXWB): a solid bar, lighter at the top, with a fine light line along it.
@@ -496,7 +502,7 @@ local line_h = {}   -- [family .. px] = the font's line height, measured while d
 -- Height of one row (name, bar and the gap under it) with look s, for the panel's layout
 function yuna.row_height(s)
     local lh = line_h[tostring(s.font_family) .. s.font_height] or math.floor(s.font_height * 1.25)
-    return lh + 3 + s.bar_height + s.row_gap
+    return math.max(1, lh + 3 + s.bar_height + s.row_gap)
 end
 
 local function bar_color(group, s, b)
@@ -558,9 +564,10 @@ local function draw_rows(group, s, st, list, count, left, top, width, height)
 
     local lh   = imgui.GetTextLineHeight()
     local bh   = s.bar_height
-    local row  = lh + 3 + bh + s.row_gap
+    local row  = math.max(1, lh + 3 + bh + s.row_gap)
     local isz  = (lh + 3 + bh) * s.icon_scale                  -- an icon (at 1.0) is as tall as the name and its bar
-    local w    = gs.bar_width
+    local S    = gs.stretch or 0                               -- (Layout's Stretch: the bar alone takes it)
+    local w    = math.max(10, gs.bar_width + S)
 
     for i = 1, count do
         local b  = list[i]
@@ -592,8 +599,13 @@ local function draw_rows(group, s, st, list, count, left, top, width, height)
         local ts = clock(remains)
         local tw = text_w(ts)
         local nm = fit(b.name or '', bw - tw - 10)
-        local nx, ny = x + s.name_font_offset_x, ry + s.name_font_offset_y
-        local tx, ty = x + bw - tw + s.timer_font_offset_x, ry + s.timer_font_offset_y
+        local function at(align, tw_)                              -- the text's left edge for its alignment
+            if align == 'center' then return x + math.floor((bw - tw_) / 2) end
+            if align == 'right' then return x + bw - tw_ end
+            return x
+        end
+        local nx, ny = at(s.name_align, text_w(nm)) + s.name_font_offset_x, ry + s.name_font_offset_y
+        local tx, ty = at(s.time_align or 'right', tw) + s.timer_font_offset_x, ry + s.timer_font_offset_y
 
         if s.font_bg_visible then
             local fb = UA(s.font_bg_color, a)
@@ -611,13 +623,16 @@ local function draw_rows(group, s, st, list, count, left, top, width, height)
         -- every bar drains, recasts included (YunaUI's look)
         local v = 0
         if (b.duration or 0) > 0 and remains > 0 then v = remains / b.duration end
-        local by = ry + lh + 3
+        -- the bar's own length and place in its row (Bars page); the text keeps to the row
+        local by = ry + lh + 3 + (s.bar_offset_y or 0)
+        x  = x + (s.bar_offset_x or 0)
+        bw = math.max(2, math.floor((bw - S) * (s.bar_length or 100) / 100) + S)
         if s.bar_border_visible then
             local round = (st.bar == 'classic') and 0 or (st.bar == 'plate') and 2 or (bh / 2 + 1)
             RR(dl, x - 1, by - 1, x + bw + 1, by + bh + 1, UA(s.bar_border_color, a), round, 1.5)
         end
         if st.bar == 'thin' then
-            thin_bar(dl, x, by, bw, bh, v, c, c2, s.effects)
+            thin_bar(dl, x, by, bw, bh, v, c, c2, s.effects, s.dot_blink and soon or 1)
         elseif st.bar == 'plate' or st.bar == 'classic' then
             plate_bar(dl, x, by, bw, bh, v, c, c2, s.effects, st.bar == 'classic')
         else
@@ -680,6 +695,38 @@ function yuna.draw(group, s, style, list, count, left, top, width, height)
     end
     imgui.End()
     imgui.PopStyleVar(2)
+end
+
+-- The Test tool's outlines: a solid line round the panel as it is now, and a dashed one round
+-- the most it can grow to (its Max height, from where it is anchored)
+local function dashed(dl, x1, y1, x2, y2, col)
+    local DASH, GAP = 6, 4
+    for x = x1, x2, DASH + GAP do RF(dl, x, y1, math.min(x + DASH, x2), y1 + 1, col); RF(dl, x, y2 - 1, math.min(x + DASH, x2), y2, col) end
+    for y = y1, y2, DASH + GAP do RF(dl, x1, y, x1 + 1, math.min(y + DASH, y2), col); RF(dl, x2 - 1, y, x2, math.min(y + DASH, y2), col) end
+end
+
+function yuna.test_outline(left, top, width, height, max_top, max_h)
+    local okb, dl = pcall(imgui.GetBackgroundDrawList)
+    if not okb or not dl then return end
+    dashed(dl, left - 2, max_top - 2, left + width + 2, max_top + max_h + 2, U4(1.0, 0.84, 0.4, 0.55))
+    RR(dl, left - 1, top - 1, left + width + 1, top + height + 1, U4(1.0, 0.84, 0.4, 0.95), 0, 1.5)
+    local s = 'max height'
+    local tw = text_w(s)
+    local lh = imgui.GetTextLineHeight()
+    local ty = (max_top < top) and (max_top + 2) or (max_top + max_h - lh - 2)
+    outlined(dl, left + width - tw - 4, ty, s, U4(1.0, 0.84, 0.4, 0.75), U4(0, 0, 0, 0.8))
+end
+
+-- A name over a panel (the Test tool: which panel is which), gold with a dark edge, just above
+-- its area (and its frame when it has one).  Drawn on ImGui's background list, as the panels.
+function yuna.title(group, text, left, top, s, style)
+    local okb, dl = pcall(imgui.GetBackgroundDrawList)
+    if not okb or not dl then return end
+    local st = style and yuna.STYLE[style]
+    local framed = st and group.settings.enable_background and s and s.frame and st.frame
+    local lh = imgui.GetTextLineHeight()
+    local y  = top - lh - 3 - (framed and FRAME_PAD or 0)
+    outlined(dl, left, y, text, U4(1.0, 0.84, 0.4, 1.0), U4(0, 0, 0, 0.9))
 end
 
 return yuna

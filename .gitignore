@@ -3,3 +3,4 @@ themes/*.lua
 
 # Release packages
 *.zip
+themes/start.txt

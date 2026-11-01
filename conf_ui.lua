@@ -327,11 +327,13 @@ local function page_layout(p)
         if v ~= nil then ps.party_buffs_combine = v end
     end
 
-    vc.section('SIZE', nil, function() reset_layout(g, { 'max_height', 'bar_width' }) end)
+    vc.section('SIZE', nil, function() reset_layout(g, { 'max_height', 'bar_width', 'stretch' }) end)
     local n = slider('maxh_' .. p.id, 'Max height', s.max_height, 20, 1000, 1, '%d px', 'The tallest the panel gets; timers that don\'t fit are left off.')
     if n then s.max_height = n end
-    n = slider('barw_' .. p.id, 'Bar length', s.bar_width, 40, 1000, 1, '%d px', 'Length of each timer bar.')
+    n = slider('barw_' .. p.id, 'Row width', s.bar_width, 40, 1000, 1, '%d px', 'Width of each timer\'s row: its name, time and bar (the bar\'s own length is on the Bars page).')
     if n then s.bar_width = n end
+    n = slider('str_' .. p.id, 'Stretch', s.stretch or 0, -300, 600, 1, '%d px', 'Makes the panel longer or shorter by the bar alone: the name stays where it is, the countdown moves with the bar\'s end, and the gaps between them stay the same.')
+    if n then s.stretch = n end
 
     vc.section('BACKGROUND', nil, function()
         reset_layout(g, { 'enable_background', 'padding' })
@@ -392,9 +394,17 @@ local function page_bars(p, g, s, base)
     vc.title(p.label, 'Bars')
     theme_note(g)
 
-    vc.section('BAR', nil, function() reset_look(s, base, { 'bar_height', 'bar_border_visible', 'bar_border_color' }) end)
+    vc.section('BAR', nil, function() reset_look(s, base, { 'bar_height', 'bar_length', 'bar_offset_x', 'bar_offset_y', 'row_gap', 'bar_border_visible', 'bar_border_color' }) end)
     local n = slider('barh_' .. p.id, 'Height', s.bar_height, y and 2 or 1, y and 20 or 50, 1, '%d px', 'Height of each timer bar.')
     if n then s.bar_height = n end
+    n = slider('barl_' .. p.id, 'Length', s.bar_length or 100, 10, 150, 1, '%d%%', 'The bar\'s length, as a share of the row (the row\'s width is the Layout page\'s Row width). The name and time stay where they are.')
+    if n then s.bar_length = n end
+    n = slider('barx_' .. p.id, 'Offset X', s.bar_offset_x or 0, -100, 100, 1, '%d px', 'Moves the bar left or right in its row.')
+    if n then s.bar_offset_x = n end
+    n = slider('bary_' .. p.id, 'Offset Y', s.bar_offset_y or 0, -30, 30, 1, '%d px', 'Moves the bar up or down in its row (up to run it through the text).')
+    if n then s.bar_offset_y = n end
+    n = slider('ygap_' .. p.id, 'Row spacing', s.row_gap or 0, -20, 16, 1, '%d px', 'Space between one timer and the next. Below 0 the rows close up and can overlap.')
+    if n then s.row_gap = n end
     local v = switch('bb_' .. p.id, 'Border', s.bar_border_visible, 'The border drawn round each bar.')
     if v ~= nil then s.bar_border_visible = v end
     local c = color_argb('bbc_' .. p.id, 'Border colour', s.bar_border_color)
@@ -402,14 +412,16 @@ local function page_bars(p, g, s, base)
 
     if y then
         local st = yuna.STYLE[base]
-        vc.section(st.label:upper(), nil, function() reset_look(s, base, { 'effects', 'row_gap', 'frame', 'bar_end' }) end)
+        vc.section(st.label:upper(), nil, function() reset_look(s, base, { 'effects', 'dot_blink', 'frame', 'bar_end' }) end)
         local fx_help = (st.bar == 'thin') and 'The halo round the dot at the bar\'s end breathes.'
                      or (st.bar == 'plate' or st.bar == 'classic') and 'A soft glow round the bar.'
                      or 'The colours flowing along the bar, its breathing glow and the sheen that sweeps along it.'
         v = switch('yfx_' .. p.id, 'Bar effects', s.effects, fx_help)
         if v ~= nil then s.effects = v end
-        n = slider('ygap_' .. p.id, 'Row spacing', s.row_gap, 0, 16, 1, '%d px', 'Space between one timer\'s bar and the next timer\'s name.')
-        if n then s.row_gap = n end
+        if st.bar == 'thin' then
+            v = switch('ydb_' .. p.id, 'Dot blinks near the end', s.dot_blink, 'The white dot at the bar\'s end blinks with the countdown in the last 10 seconds (and when a recast is about to come back).')
+            if v ~= nil then s.dot_blink = v end
+        end
         if st.frame then
             v = switch('yfr_' .. p.id, 'Background as the theme\'s frame', s.frame, 'When the background is on (Layout page), draw it as: ' .. ({ plate = 'A dark plate with a fine light edge, as Vex\'s HP / MP bars.',
                 vex = 'Dark glass with a faint violet edge, as the Damage Meter.', hex = 'Square, cut corners and a gold edge, as Hex link.',
@@ -483,6 +495,13 @@ local function page_text(p, g, s, base)
         local c = color_argb(e[1] .. '_' .. p.id, e[2], s[e[1]])
         if c then s[e[1]] = c end
     end
+
+    local ALIGN = { { 'left', 'Left' }, { 'center', 'Centre' }, { 'right', 'Right' } }
+    vc.section('ALIGNMENT', nil, function() reset_look(s, base, { 'name_align', 'time_align' }) end)
+    local pick = seg_row('nal_' .. p.id, 'Name', ALIGN, s.name_align or 'left', 'Where the name sits in its row. The offsets below move it from there.')
+    if pick ~= nil then s.name_align = pick end
+    pick = seg_row('tal_' .. p.id, 'Countdown', ALIGN, s.time_align or 'right', 'Where the countdown sits in its row. The offsets below move it from there.')
+    if pick ~= nil then s.time_align = pick end
 
     vc.section('NAME OFFSET', nil, function() reset_look(s, base, { 'name_font_offset_x', 'name_font_offset_y' }) end)
     n = slider('nx_' .. p.id, 'X', s.name_font_offset_x, -250, 250, 1, '%d px')
@@ -666,7 +685,7 @@ local SUB_DRAW = {
 -- Theme page
 --------------------------------------------------------------------------------
 -- The Theme page: each panel's theme, and your custom themes (themes.lua)
-local gTh = { pick = nil, name = { '' }, msg = '', ok = true, confirm = nil }
+local gTh = { pick = nil, name = { '' }, save = { '' }, msg = '', ok = true, confirm = nil }
 
 local function th_say(ok, msg) gTh.ok, gTh.msg = ok, msg end
 
@@ -686,10 +705,44 @@ local function page_theme()
     if all ~= nil then
         for _, p in ipairs(PANELS) do group_of(p).settings.theme = all end
     end
+    local start = combo_row('tht_start', 'Start with', choices, themes.start or 'default',
+        'The theme every character\'s panels start with: new characters, and any still on Default. A character that picks its own theme keeps it. Default: no start theme.')
+    if start ~= nil then
+        local ok, err = themes.set_start(start)
+        th_say(ok, ok and ((start == 'default') and 'No start theme.' or ('Characters start with "%s".'):format(themes.label(start)))
+                      or ('Could not save it: %s'):format(tostring(err)))
+    end
 
     local names = themes.names()
     vc.section('YOUR THEMES', ('%d'):format(#names))
     vc.note('The built-in themes never change. Change any bar, text or icon setting while a panel uses one, and a custom theme is made from it ("Classic (custom)") for every panel using it. Custom themes are files in this addon\'s themes folder, saved as you change them, so every character can use them.')
+
+    -- Save as: the look the panels have now, as a new theme with this name, which they then use
+    vc.label_row('Save as', COMBO_W + 108)
+    imgui.PushItemWidth(vc.z(COMBO_W))
+    imgui.InputText('##th_save', gTh.save, 48)
+    imgui.PopItemWidth()
+    tip('Type a name, then Save: the panels\' look now (each panel\'s bars, text and icons) becomes a theme of yours with that name, and every panel uses it. Letters, numbers, spaces and - _ . ( ) only.')
+    imgui.SameLine()
+    if vc.button('Save##th_save_btn', 'primary', 100) then
+        local name = themes.clean_name(gTh.save[1])
+        if name == '' then
+            th_say(false, 'Type a name for the theme first.')
+        elseif themes.custom[name] then
+            th_say(false, ('"%s" already exists: pick another name, or rename that one.'):format(name))
+        else
+            local looks, base = {}, nil
+            for _, p in ipairs(PANELS) do
+                local look, b = themes.look(group_of(p))
+                looks[p.id] = look
+                base = base or b
+            end
+            local ne = themes.create(base or 'default', name, looks)
+            for _, p in ipairs(PANELS) do group_of(p).settings.theme = themes.custom_id(ne.name) end
+            gTh.pick, gTh.confirm, gTh.name[1], gTh.save[1] = ne.name, nil, ne.name, ''
+            th_say(true, ('Saved "%s"; every panel uses it.'):format(ne.name))
+        end
+    end
 
     local items = {}
     for _, n in ipairs(names) do items[#items + 1] = { n, n } end
@@ -732,12 +785,12 @@ local function page_theme()
             imgui.SameLine()
             if vc.button('Delete##th_del', 'danger', 80) then gTh.confirm = 'del' end
 
-            vc.label_row('Rename to', COMBO_W)
+            vc.label_row('Rename to', COMBO_W + 108)
             imgui.PushItemWidth(vc.z(COMBO_W))
             imgui.InputText('##th_name', gTh.name, 48)
             imgui.PopItemWidth()
             tip('Letters, numbers, spaces and - _ . ( ) only.')
-            vc.right(100)
+            imgui.SameLine()
             if vc.button('Rename##th_ren', nil, 100) then
                 local old, new = e.name, themes.clean_name(gTh.name[1])
                 local ok, err = themes.rename(old, new)
@@ -956,9 +1009,10 @@ local function set_testing(on)
         durations = ui.timers.buffs.timers,
         debuffs = ui.timers.debuffs.timers,
     }
+    local titles = { recasts = 'Recasts', durations = 'Buffs', debuffs = 'Debuffs' }
     for kind, group in pairs(groups) do
         if on then
-            group:start_preview(build_preview(kind))
+            group:start_preview(build_preview(kind), titles[kind])
         else
             group:stop_preview()
         end
@@ -967,10 +1021,154 @@ local function set_testing(on)
 end
 
 --------------------------------------------------------------------------------
+-- Arrange page: line the panels up with each other, space them out, centre them on screen.
+-- A panel's box is its Max height area (the dashed outline in Test), so it lines up the same
+-- however many timers it has; for a panel that grows up, its anchor is that box's bottom.
+--------------------------------------------------------------------------------
+local gArr = { sel = { recasts = true, durations = true, debuffs = true }, gap = 10 }
+
+local function box_of(g)
+    local s, pad = g.settings, g.settings.padding
+    local w = math.max(10, s.bar_width + (s.stretch or 0)) + pad[1] + pad[3]
+    local x, y = s.background.position_x, s.background.position_y
+    local top = s.grow_up and (y - s.max_height) or y
+    return { g = g, l = x, t = top, w = w, h = s.max_height }
+end
+
+local function place_box(b, l, t)
+    local s = b.g.settings
+    b.g:move_to(math.floor(l + 0.5), math.floor((s.grow_up and (t + b.h) or t) + 0.5))
+    b.l, b.t = l, t
+end
+
+local function chosen_boxes()
+    local out = {}
+    for _, p in ipairs(PANELS) do
+        if gArr.sel[p.id] then out[#out + 1] = box_of(group_of(p)) end
+    end
+    return out
+end
+
+local function screen_size()
+    local ok, io_ = pcall(imgui.GetIO)
+    local d = ok and io_ and io_.DisplaySize
+    if type(d) == 'table' or type(d) == 'userdata' then
+        local w, h = d.x or d[1], d.y or d[2]
+        if w and h then return w, h end
+    end
+    return nil
+end
+
+local arrange_moves
+
+local function arrange(how)
+    local bs = chosen_boxes()
+    if #bs == 0 then gArr.msg = 'No panel is switched on above.'; return end
+    local ok, err = pcall(arrange_moves, how, bs)
+    -- What moved where (the panel's anchor: its top-left, or bottom-left when it grows up)
+    local parts = {}
+    for _, p in ipairs(PANELS) do
+        if gArr.sel[p.id] then
+            local bg = group_of(p).settings.background
+            parts[#parts + 1] = ('%s %d, %d'):format(p.label, bg.position_x, bg.position_y)
+        end
+    end
+    gArr.msg = ok and (table.concat(parts, '   ')) or ('Could not arrange them: ' .. tostring(err))
+end
+
+arrange_moves = function(how, bs)
+    local L, T, R, B = math.huge, math.huge, -math.huge, -math.huge
+    for _, b in ipairs(bs) do
+        L, T = math.min(L, b.l), math.min(T, b.t)
+        R, B = math.max(R, b.l + b.w), math.max(B, b.t + b.h)
+    end
+    if how == 'left' then for _, b in ipairs(bs) do place_box(b, L, b.t) end
+    elseif how == 'right' then for _, b in ipairs(bs) do place_box(b, R - b.w, b.t) end
+    elseif how == 'centre' then for _, b in ipairs(bs) do place_box(b, (L + R) / 2 - b.w / 2, b.t) end
+    elseif how == 'top' then for _, b in ipairs(bs) do place_box(b, b.l, T) end
+    elseif how == 'bottom' then for _, b in ipairs(bs) do place_box(b, b.l, B - b.h) end
+    elseif how == 'middle' then for _, b in ipairs(bs) do place_box(b, b.l, (T + B) / 2 - b.h / 2) end
+    elseif how == 'row' or how == 'column' then
+        -- in their order on screen, each one gap after the last, from the first one's place
+        local row = (how == 'row')
+        table.sort(bs, function(a, b) if row then return a.l < b.l end return a.t < b.t end)
+        local at = row and bs[1].l or bs[1].t
+        for _, b in ipairs(bs) do
+            if row then place_box(b, at, b.t); at = at + b.w + gArr.gap
+            else place_box(b, b.l, at); at = at + b.h + gArr.gap end
+        end
+    elseif how == 'screen_x' or how == 'screen_y' then
+        local sw, sh = screen_size()
+        if not sw then return end
+        local dx = (how == 'screen_x') and (sw / 2 - (L + R) / 2) or 0
+        local dy = (how == 'screen_y') and (sh / 2 - (T + B) / 2) or 0
+        for _, b in ipairs(bs) do place_box(b, b.l + dx, b.t + dy) end
+    end
+end
+
+local function page_arrange()
+    vc.title('Arrange', 'line the panels up')
+    vc.note('Each panel counts as its Max height box: the dashed outline while Test runs. Turn Test on to watch the panels move.')
+
+    vc.section('PANELS TO ARRANGE')
+    for _, p in ipairs(PANELS) do
+        local v = switch('arr_' .. p.id, p.label, gArr.sel[p.id])
+        if v ~= nil then gArr.sel[p.id] = v end
+    end
+
+    local function buttons(list)
+        for i, e in ipairs(list) do
+            if i > 1 then imgui.SameLine() end
+            local on = (gArr.mode == e[1])
+            if vc.button(e[2] .. '##arr_' .. e[1], on and 'primary' or nil, 120) then
+                arrange(e[1])
+                -- Side by side / Stacked stay picked, so the Gap re-spaces them; anything else ends that
+                gArr.mode = (e[1] == 'row' or e[1] == 'column') and e[1] or nil
+            end
+            tip(e[3])
+        end
+    end
+
+    vc.section('ALIGN')
+    buttons({ { 'left', 'Left', 'Every panel\'s left edge where the leftmost one\'s is.' },
+              { 'centre', 'Centre', 'Every panel centred on the same line, across the middle of them all.' },
+              { 'right', 'Right', 'Every panel\'s right edge where the rightmost one\'s is.' } })
+    buttons({ { 'top', 'Top', 'Every panel\'s top where the highest one\'s is.' },
+              { 'middle', 'Middle', 'Every panel centred on the same level, through the middle of them all.' },
+              { 'bottom', 'Bottom', 'Every panel\'s bottom where the lowest one\'s is.' } })
+
+    vc.section('SPACE OUT')
+    local n = slider('arr_gap', 'Gap', gArr.gap, 0, 200, 1, '%d px', 'Space between the panels. After Side by side or Stacked, moving this re-spaces them that way as you drag.')
+    if n then
+        gArr.gap = n
+        if gArr.mode then arrange(gArr.mode) end
+    end
+    buttons({ { 'row', 'Side by side', 'In their order from left to right, each one Gap after the last, starting where the leftmost one is.' },
+              { 'column', 'Stacked', 'In their order from top to bottom, each one Gap under the last, starting where the highest one is.' } })
+    if gArr.msg then imgui.TextColored(C.mute, 'Now at: ' .. gArr.msg) end
+
+    vc.section('ON SCREEN')
+    buttons({ { 'screen_x', 'Centre across', 'Moves the panels together so they are centred left to right on the screen.' },
+              { 'screen_y', 'Centre up/down', 'Moves the panels together so they are centred top to bottom on the screen.' } })
+
+    vc.section('POSITION')
+    local sw, sh = screen_size()
+    for _, p in ipairs(PANELS) do
+        local g = group_of(p)
+        local bg = g.settings.background
+        n = slider('arrx_' .. p.id, p.label .. ' X', bg.position_x, 0, math.floor(sw or 4000), 1, '%d px', 'Its left edge.')
+        if n then g:move_to(n, bg.position_y) end
+        n = slider('arry_' .. p.id, p.label .. ' Y', bg.position_y, 0, math.floor(sh or 3000), 1, '%d px',
+            g.settings.grow_up and 'Its bottom (it grows up from here).' or 'Its top (it grows down from here).')
+        if n then g:move_to(bg.position_x, n) end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Window
 --------------------------------------------------------------------------------
-local PAGES = { about = page_about, theme = page_theme, sets = page_sets }
-local PAGE_NAME = { about = 'About', theme = 'Theme', sets = 'Filter Sets' }
+local PAGES = { about = page_about, theme = page_theme, sets = page_sets, arrange = page_arrange }
+local PAGE_NAME = { about = 'About', theme = 'Theme', sets = 'Filter Sets', arrange = 'Arrange' }
 for _, p in ipairs(PANELS) do
     for _, sp in ipairs(SUBPAGES) do
         local id = p.id .. '.' .. sp[1]
@@ -989,6 +1187,9 @@ local function sidebar(nav)
     nav.gap()
     if nav.head('star', 'Theme', win.page == 'theme') then win.page = 'theme' end
     nav.tip('Default or YunaUI for each panel')
+    nav.gap()
+    if nav.head('widget', 'Arrange', win.page == 'arrange') then win.page = 'arrange' end
+    nav.tip('Line the panels up: left, right, top, bottom, centre')
 
     nav.caption('PANELS')
     for _, p in ipairs(PANELS) do

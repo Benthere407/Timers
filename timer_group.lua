@@ -44,7 +44,12 @@ local default_settings = T{
     bar_border_visible = true,
     bar_border_color = 0x80000000,
     bar_height = 3,
+    bar_length = 100,       -- % of the row's width
+    bar_offset_x = 0,
+    bar_offset_y = 0,
+    row_gap = 0,            -- px added between rows (can be negative)
     bar_width = 194,
+    stretch = 0,            -- px added to the row and its bar alone (the gaps round the bar stay)
     max_height = 543,
     grow_up = false,
     sort_mode = 0,
@@ -57,6 +62,8 @@ local default_settings = T{
     name_font_offset_y = 0,
     timer_font_offset_x = -2,
     timer_font_offset_y = 0,
+    name_align = 'left',    -- where the name sits in its row: 'left', 'center' or 'right'
+    time_align = 'right',   -- the countdown, the same
     padding = T{ 0,0,0,0 },
 
     -- Background Primitive Settings
@@ -280,6 +287,7 @@ function TimerGroup:hide()
     end
 
     self.bg.visible = false
+    self.shown = false
 end
 
 function TimerGroup:show()
@@ -292,6 +300,7 @@ function TimerGroup:show()
 
     self:move_to(self.settings.background.position_x, self.settings.background.position_y)
     self.bg.visible = self.settings.enable_background
+    self.shown = true               -- (on screen: a right-click on it opens the settings)
 
     for _, v in pairs(self.timers) do
         if not v.active then break end
@@ -334,6 +343,7 @@ function TimerGroup:update_timer_settings()
 
         t.bg.height = self.settings.bar_height
         t.width = self.settings.bar_width
+        t.stretch = self.settings.stretch or 0
 
         t.name_font.font_family = self.settings.font_family
         t.name_font.font_height = scaling.scale_f(self.settings.font_height)
@@ -364,6 +374,11 @@ function TimerGroup:update_timer_settings()
         t.name_font_offset_y = self.settings.name_font_offset_y
         t.timer_font_offset_x = self.settings.timer_font_offset_x
         t.timer_font_offset_y = self.settings.timer_font_offset_y
+        t.bar_length = self.settings.bar_length or 100
+        t.bar_offset_x = self.settings.bar_offset_x or 0
+        t.bar_offset_y = self.settings.bar_offset_y or 0
+        t.name_align = self.settings.name_align or 'left'
+        t.time_align = self.settings.time_align or 'right'
     end
 end
 
@@ -607,8 +622,9 @@ function TimerGroup:set_filter(only_checked, show, hide)
 end
 
 -- items: array of { name, duration (frames), target, icon_id, mode, start_time, overdue, blink_last }
-function TimerGroup:start_preview(items)
-    self.preview = { t0 = os.clock(), items = items }
+-- title: shown over the panel while the samples run
+function TimerGroup:start_preview(items, title)
+    self.preview = { t0 = os.clock(), items = items, title = title }
 end
 
 function TimerGroup:stop_preview()
@@ -686,7 +702,7 @@ function TimerGroup:render(bars, opts)
     local look, base = themes.look(self)
     local themed = yuna.is_theme(base)
     if not themed then self:apply_default_look(look) end
-    local row_h = themed and yuna.row_height(look) or (self.timers[1]:get_height() + pad[4])
+    local row_h = themed and yuna.row_height(look) or math.max(1, self.timers[1]:get_height() + pad[4] + (look.row_gap or 0))
 
     -- How many rows fit in the configured maximum height
     local count = 0
@@ -754,7 +770,7 @@ function TimerGroup:render(bars, opts)
     self.bg.position_x = anchor_x
     self.bg.position_y = top_y
     self.bg.height = total_h
-    self.bg.width = self.settings.bar_width + pad[1] + pad[3]
+    self.bg.width = math.max(10, self.settings.bar_width + (self.settings.stretch or 0)) + pad[1] + pad[3]
 
     if not themed then
         yuna.area_window(self, anchor_x, top_y, self.bg.width, total_h)   -- (so VanaCore puts game menus over it)
@@ -765,8 +781,22 @@ function TimerGroup:render(bars, opts)
         self.bg.visible = false
         self:hide_menu_bg()
         yuna.draw(self, look, base, list, count, anchor_x, top_y, self.bg.width, total_h + pad[4])
-        return
     end
+
+    -- Test: the panel's outline, the most it can grow to (Max height) and its name, to help place it
+    if self.preview then
+        local max_h = self.settings.max_height
+        yuna.test_outline(anchor_x, top_y, self.bg.width, total_h, grow_up and (anchor_y - max_h) or anchor_y, max_h)
+        if self.preview.title then
+            if themed then
+                yuna.title(self, self.preview.title, anchor_x, top_y, look, base)
+            else
+                yuna.title(self, self.preview.title, anchor_x, top_y)
+            end
+        end
+    end
+
+    if themed then return end
 
     self:update_menu_bg()
 

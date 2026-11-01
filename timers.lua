@@ -19,7 +19,7 @@
 
 addon.name      = 'Timers';
 addon.author    = 'Shiyo, The Mystic, Benthere407';
-addon.version   = '2.0.2';
+addon.version   = '2.0.3';
 addon.desc      = 'Displays the duration of spells and abilities you\'ve used';
 addon.link      = 'https://github.com/Benthere407/Timers';
 
@@ -40,6 +40,7 @@ gThemes     = require('themes')
 gGui        = require('conf_ui')
 
 gShiftDown = false;
+gRightClickEaten = false;   -- a right-click on a panel opened the settings: its button-up is blocked too
 
 -- Default Settings
 local default_settings = T{
@@ -323,6 +324,13 @@ ashita.events.register('mouse', 'mouse_cb', function (e)
         return ((e_x <= x) and (e_x + e_w) >= x) and ((e_y <= y) and (e_y + e_h) >= y);
     end
 
+    -- Right button up after a right-click that opened the settings: the game never saw the down
+    if e.message == 517 and gRightClickEaten then
+        gRightClickEaten = false
+        e.blocked = true
+        return
+    end
+
     local panel = nil
     if HitTest(timers.recasts, e.x, e.y) then
         panel = timers.recasts
@@ -333,6 +341,14 @@ ashita.events.register('mouse', 'mouse_cb', function (e)
     end
 
     if not panel then return end
+
+    -- Right-click on a panel on screen: open the settings window
+    if e.message == 516 and panel.timers.shown then
+        gGui.is_open[1] = true
+        gRightClickEaten = true
+        e.blocked = true
+        return
+    end
 
     local function is_dragging() return panel.settings.move.dragging; end
 

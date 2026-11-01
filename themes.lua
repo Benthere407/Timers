@@ -46,7 +46,8 @@ themes.PANELS = PANELS
 themes.DEFAULT_KEYS = { 'bar_height', 'bar_border_visible', 'bar_border_color', 'thresholds', 'colors',
     'font_family', 'font_height', 'font_bg_visible', 'font_bg_color', 'name_font_color', 'name_outline_color',
     'time_font_color', 'time_outline_color', 'name_font_offset_x', 'name_font_offset_y', 'timer_font_offset_x',
-    'timer_font_offset_y', 'enable_icons', 'icon_scale', 'icon_offset_x', 'icon_offset_y' }
+    'timer_font_offset_y', 'enable_icons', 'icon_scale', 'icon_offset_x', 'icon_offset_y',
+    'bar_length', 'bar_offset_x', 'bar_offset_y', 'row_gap', 'name_align', 'time_align' }
 
 local function copy(v) return (type(v) == 'table') and table.table_copy(v) or v end
 
@@ -323,6 +324,7 @@ function themes.rename(old, new)
     for _, g in pairs(themes.groups) do
         if g.settings.theme == themes.custom_id(old) then g.settings.theme = themes.custom_id(new) end
     end
+    if themes.start == themes.custom_id(old) then pcall(themes.set_start, themes.custom_id(new)) end
     return true
 end
 
@@ -336,6 +338,7 @@ function themes.delete(name)
     for _, g in pairs(themes.groups) do
         if g.settings.theme == themes.custom_id(name) then g.settings.theme = e.base end
     end
+    if themes.start == themes.custom_id(name) then pcall(themes.set_start, e.base) end
     return true
 end
 
@@ -378,6 +381,55 @@ local function migrate()
     for _, e in pairs(made) do write(e) end
 end
 
+--------------------------------------------------------------------------------
+-- The start theme: the theme a character's panels start with (themes\start.txt, for every
+-- character).  A panel takes it once, while it is still on Default; after that its theme is its own.
+--------------------------------------------------------------------------------
+themes.start = nil
+
+local function start_path() return themes.dir() .. 'start.txt' end
+
+local function valid(id) return id ~= nil and (BUILTIN_LABEL[id] ~= nil or custom_of(id) ~= nil) end
+
+function themes.read_start()
+    themes.start = nil
+    local f = io.open(start_path(), 'r')
+    if not f then return end
+    local id = (f:read('*l') or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    f:close()
+    if id ~= '' and id ~= 'default' then themes.start = id end
+end
+
+-- id: a theme id, or nil / 'default' for none.  The panels here count as having chosen.
+function themes.set_start(id)
+    if id == 'default' then id = nil end
+    themes.start = id
+    if id == nil then
+        os.remove(start_path())
+    else
+        local dir = themes.dir()
+        if not ashita.fs.exists(dir) then
+            if not pcall(ashita.fs.create_dir, dir) then pcall(ashita.fs.create_directory, dir) end
+        end
+        local f, err = io.open(start_path(), 'w')
+        if not f then return false, tostring(err) end
+        f:write(id, '\n')
+        f:close()
+    end
+    for _, g in pairs(themes.groups) do g.settings.start_done = true end
+    return true
+end
+
+local function apply_start()
+    if not valid(themes.start) then return end
+    for _, g in pairs(themes.groups) do
+        if not g.settings.start_done then
+            if (g.settings.theme or 'default') == 'default' then g.settings.theme = themes.start end
+            g.settings.start_done = true
+        end
+    end
+end
+
 -- groups: { recasts = TimerGroup, durations = TimerGroup, debuffs = TimerGroup }
 function themes.init(groups)
     themes.groups = groups
@@ -388,6 +440,8 @@ function themes.init(groups)
         local id = g.settings.theme or 'default'
         if not BUILTIN_LABEL[id] and not custom_of(id) then g.settings.theme = 'default' end
     end
+    pcall(themes.read_start)
+    pcall(apply_start)
 end
 
 return themes

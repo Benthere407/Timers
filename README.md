@@ -3,7 +3,7 @@
 Timer bars for your **recasts**, the buffs you cast (**Durations**) and the debuffs you land on monsters (**Debuffs**),
 each in its own panel you can place, size, sort, filter and theme.
 
-Version 2.0.2, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
+Version 2.0.3, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
 
 ## Install
 
@@ -19,6 +19,20 @@ Version 2.0.2, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, w
 | `/timers` | Open or close the settings window |
 | `/timers lock` / `/timers unlock` | Stop or allow moving the panels |
 | Shift + drag | Move a panel |
+
+## What's new in 2.0.3
+
+- **Right-click a panel** to open the settings window.
+- **Arrange page**: line the panels up (left, centre, right, top, middle, bottom), space them side by side or
+  stacked with a gap, centre them on screen, or set each one's X and Y.
+- **Test** shows each panel's name, an outline round it and a dashed outline round its Max height.
+- **Bars**: the bar's own length (%), X / Y offset, and a row spacing that can go below 0 (every theme).
+  The thin bar's dot can blink with the countdown near the end.
+- **Text**: align the name and the countdown left, centre or right.
+- **Layout**: Stretch makes a panel longer or shorter by its bar alone, keeping the gaps round it.
+  (The old "Bar length" is now called Row width.)
+- **Themes**: Save as (the panels' look as a new theme of yours), a Start with theme that every character's
+  panels start with, and the Rename button is back in view.
 
 ## What's new in 2.0
 

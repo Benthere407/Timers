@@ -129,6 +129,12 @@ Timer = {
     name_font_offset_y = 0,
     timer_font_offset_x = -2,
     timer_font_offset_y = 0,
+    bar_length = 100,   -- % of the row's width
+    stretch = 0,
+    bar_offset_x = 0,
+    bar_offset_y = 0,
+    name_align = 'left',
+    time_align = 'right',
     position_y = 0,
     position_x = 0,
     flash_frame = 0,
@@ -150,6 +156,22 @@ local function dim_color(color, factor)
     local v = bit.bor(bit.lshift(a, 24), bit.band(color, 0x00FFFFFF))
     if v < 0 then v = v + 4294967296 end
     return v
+end
+
+-- Places a font in the row [row_x, row_x + row_w] by its alignment ('left', 'center', 'right')
+local function place(font, align, row_x, row_w, off_x)
+    if align == 'right' then
+        font.right_justified = true
+        font.position_x = row_x + row_w + off_x
+        return
+    end
+    font.right_justified = false
+    local x = row_x
+    if align == 'center' then
+        local ok, w = pcall(function() return font:get_text_size() end)
+        x = row_x + math.floor((row_w - ((ok and tonumber(w)) or 0)) / 2)
+    end
+    font.position_x = x + off_x
 end
 
 local function format_timestamp(timer)
@@ -285,7 +307,8 @@ function Timer:update()
         self.bg.border_color = self.border_color
     end
 
-    self.bg.width = self.width
+    local S = self.stretch or 0     -- (Layout's Stretch: the bar alone takes it)
+    self.bg.width = math.max(10, self.width + S)
     self.bg.position_x = self.position_x
     self.bg.position_y = (self.position_y + self:get_height()) - self.bg.height
 
@@ -312,6 +335,12 @@ function Timer:update()
     else
         self.icon.visible = false
     end
+
+    -- The row (the text keeps to it), then the bar's own length and place in it
+    local row_x, row_w, row_by = self.bg.position_x, self.bg.width, self.bg.position_y
+    self.bg.width = math.max(2, math.floor((row_w - S) * (self.bar_length or 100) / 100) + S)
+    self.bg.position_x = row_x + (self.bar_offset_x or 0)
+    self.bg.position_y = row_by + (self.bar_offset_y or 0)
 
     self.fg.position_x = self.bg.position_x
     self.fg.position_y = self.bg.position_y
@@ -343,9 +372,9 @@ function Timer:update()
     self.name_font.color = name_color
     self.name_font.color_outline = name_outline
     self.name_font.text = self.name
-    self.name_font.position_x = self.bg.position_x + self.name_font_offset_x
+    place(self.name_font, self.name_align or 'left', row_x, row_w, self.name_font_offset_x)
     self.name_font.position_y = math.max(self.position_y,
-                                  self.bg.position_y - self.name_font.background.height) + self.name_font_offset_y
+                                  row_by - self.name_font.background.height) + self.name_font_offset_y
     self.name_font:render()
 
     -- Overdue timers show how far past zero they are, e.g. -1.25s
@@ -356,10 +385,9 @@ function Timer:update()
     end
     self.time_font.color = time_color
     self.time_font.color_outline = time_outline
-    self.time_font.position_x = (self.bg.position_x + self.bg.width) + self.timer_font_offset_x
+    place(self.time_font, self.time_align or 'right', row_x, row_w, self.timer_font_offset_x)
     self.time_font.position_y = math.max(self.position_y,
-                                  self.bg.position_y - self.time_font.background.height) + self.timer_font_offset_y
-    self.time_font.right_justified = true
+                                  row_by - self.time_font.background.height) + self.timer_font_offset_y
     self.time_font:render()
 
     return true
