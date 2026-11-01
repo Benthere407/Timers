@@ -19,7 +19,7 @@
 
 addon.name      = 'Timers';
 addon.author    = 'Shiyo, The Mystic, Benthere407';
-addon.version   = '2.0';
+addon.version   = '2.0.1';
 addon.desc      = 'Displays the duration of spells and abilities you\'ve used';
 addon.link      = 'https://github.com/Benthere407/Timers';
 

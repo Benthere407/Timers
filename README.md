@@ -3,11 +3,11 @@
 Timer bars for your **recasts**, the buffs you cast (**Durations**) and the debuffs you land on monsters (**Debuffs**),
 each in its own panel you can place, size, sort, filter and theme.
 
-Version 2.0, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
+Version 2.0.1, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
 
 ## Install
 
-1. Download `timers-2.0.zip` from the [latest release](https://github.com/Benthere407/Timers/releases/latest).
+1. Download the `timers-<version>.zip` from the [latest release](https://github.com/Benthere407/Timers/releases/latest).
 2. Unzip it into your `addons` folder (for VanaCore: `VanaCore\addons\ashita\`), so you have `addons\...\timers\timers.lua`.
    Replacing an older Timers? Delete the old `timers` folder first; your settings are kept.
 3. In game: `/addon load timers`. Add that line to your startup script to load it every time.
