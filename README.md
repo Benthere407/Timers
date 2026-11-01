@@ -3,7 +3,7 @@
 Timer bars for your **recasts**, the buffs you cast (**Durations**) and the debuffs you land on monsters (**Debuffs**),
 each in its own panel you can place, size, sort, filter and theme.
 
-Version 2.0.1, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
+Version 2.0.2, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
 
 ## Install
 
