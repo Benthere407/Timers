@@ -286,7 +286,7 @@ local function page_layout(p)
     copy_section(p)
 
     vc.section('PANEL', nil, function()
-        s.enabled, ps.locked, s.hide_in_menus = true, false, true
+        s.enabled, ps.locked, s.hide_in_menus = true, false, false
         g:set_grow_up(false)
     end)
     local v = switch('en_' .. p.id, 'Show this panel', s.enabled, 'Toggle visibility of the panel.')
@@ -295,10 +295,15 @@ local function page_layout(p)
     if v ~= nil then ps.locked = v end
     v = switch('grow_' .. p.id, 'Grow upward', s.grow_up, 'On: new timers are added above the panel\'s anchor (it is anchored by its bottom edge). Off: the list grows down from its top edge.')
     if v ~= nil then g:set_grow_up(v) end
-    v = switch('menu_' .. p.id, 'Hide while a game menu is open', s.hide_in_menus ~= false,
-        'The game draws its menus before any addon, so nothing can sit under them: the panel hides while one is open instead (not while you type in chat).')
+    v = switch('menu_' .. p.id, 'Hide while a game menu is open', s.hide_in_menus == true,
+        'For plain Ashita, where the game\'s menus can\'t go over addons: the panel hides while one is open (not while you type in chat).')
     if v ~= nil then s.hide_in_menus = v end
-    vc.note(('Game menu open now: %s'):format((gGameMenuName ~= '') and gGameMenuName or 'none'))
+    if rawget(_G, 'vana') then
+        vc.note('Under VanaCore the game\'s menus already go over the panels, so this isn\'t needed (unless VanaCore\'s menus.ontop is 0).')
+    end
+    if s.hide_in_menus == true then
+        vc.note(('Game menu open now: %s'):format((gGameMenuName ~= '') and gGameMenuName or 'none'))
+    end
     local pick = combo_row('th_' .. p.id, 'Theme', themes.choices(), s.theme or 'default', 'Default: Ashita fonts and bars. The others are described on the Theme page. Each keeps its own bar, text and icon settings.')
     if pick ~= nil then s.theme = pick end
 

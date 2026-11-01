@@ -641,6 +641,22 @@ end
 
 local last_err = nil
 
+-- An empty, see-through ImGui window over a Default-theme panel (drawn with Ashita's fonts and bars,
+-- not ImGui): VanaCore puts the game's windows over an addon's ImGui windows where they meet
+-- (vana.ui.game_on_top, timers.lua), so this gives those panels the same.  Only under VanaCore.
+function yuna.area_window(group, left, top, width, height)
+    if not rawget(_G, 'vana') or width <= 0 or height <= 0 then return end
+    imgui.SetNextWindowPos({ left, top }, ImGuiCond_Always)
+    imgui.SetNextWindowSize({ width, height }, ImGuiCond_Always)
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 })
+    imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0)
+    if imgui.Begin('##timers_area_' .. tostring(group.panel_id), { true }, window_flags()) then
+        imgui.Dummy({ width, height })
+    end
+    imgui.End()
+    imgui.PopStyleVar(2)
+end
+
 -- Draws a panel with look s in style `style` (a STYLES id): list holds its rows top to bottom
 -- (count of them); left, top, width, height is the panel's area on screen (the same area
 -- Shift+drag uses).  Called from d3d_present.

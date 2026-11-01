@@ -27,7 +27,7 @@ local themes    = require('themes')
 
 local default_settings = T{
     enabled = true,
-    hide_in_menus = true,   -- hide while a game menu is open (FFXI's menus can't be drawn over from under)
+    hide_in_menus = false,  -- hide while a game menu is open (for plain Ashita: under VanaCore the menus go over the panels)
     -- 'default': Ashita fonts and primitives (everything below)
     -- 'yunaui':  drawn with ImGui in YunaUI's look (theme_yuna.lua, settings in yuna)
     theme = 'default',
@@ -638,7 +638,7 @@ function TimerGroup:render(bars, opts)
     self:clear()
 
     -- A game menu is open: the panel can't go under it, so it steps out of the way
-    if gGameMenuOpen and self.settings.hide_in_menus ~= false then
+    if gGameMenuOpen and self.settings.hide_in_menus == true then
         self:hide()
         return
     end
@@ -755,6 +755,10 @@ function TimerGroup:render(bars, opts)
     self.bg.position_y = top_y
     self.bg.height = total_h
     self.bg.width = self.settings.bar_width + pad[1] + pad[3]
+
+    if not themed then
+        yuna.area_window(self, anchor_x, top_y, self.bg.width, total_h)   -- (so VanaCore puts game menus over it)
+    end
 
     if themed then
         -- The primitives stay hidden (the background keeps its size and place for Shift+drag)

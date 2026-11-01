@@ -189,6 +189,13 @@ ashita.events.register('load', 'load_cb', function ()
     -- the theme files, and any look this character's settings kept for a built-in theme
     gThemes.init({ recasts = timers.recasts.timers, durations = timers.buffs.timers, debuffs = timers.debuffs.timers })
 
+    -- VanaCore: the game's windows (menus, item details, shops) drawn over this addon's windows where
+    -- they meet, so the panels sit behind them (the player's [client] menus.ontop=0 turns it off)
+    pcall(function()
+        local v = rawget(_G, 'vana')
+        if v and v.ui and v.ui.game_on_top then v.ui.game_on_top(true) end
+    end)
+
     gBuff.SyncBuffs()
 end);
 
