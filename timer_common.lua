@@ -137,6 +137,43 @@ function GetStatusIconForName(name)
     return gStatusIconByName[FilterBaseName(name):lower()] or -1
 end
 
+-- The game's focused menu ('' when none): FFXI draws its menus before any addon draws, so a
+-- panel can't go under one; it hides instead (a panel's Hide while a game menu is open).
+-- Read through the game's menu pointer, as XIUI and YunaUI do ('menu    inline' -> 'inline').
+local gMenuPtr = nil
+
+function GameMenuName()
+    if gMenuPtr == nil then
+        local ok, p = pcall(ashita.memory.find, 'FFXiMain.dll', 0, '8B480C85C974??8B510885D274??3B05', 16, 0)
+        gMenuPtr = (ok and p) or 0
+    end
+    if gMenuPtr == 0 then return '' end
+    local ok, name = pcall(function()
+        local sub = ashita.memory.read_uint32(gMenuPtr)
+        if sub == nil or sub == 0 then return '' end
+        local obj = ashita.memory.read_uint32(sub)
+        if obj == nil or obj == 0 then return '' end
+        local head = ashita.memory.read_uint32(obj + 4)
+        if head == nil or head == 0 then return '' end
+        return (ashita.memory.read_string(head + 0x46, 16) or '')
+    end)
+    if not ok or type(name) ~= 'string' then return '' end
+    name = name:gsub('%z', ''):gsub('^%s*menu%s*', ''):gsub('%s+$', '')
+    return name
+end
+
+-- Focused menus that don't count as a menu over the screen (typing in chat)
+local NOT_A_MENU = { [''] = true, inline = true }
+
+-- Set once a frame (timers.lua): whether a game menu is open
+gGameMenuOpen = false
+gGameMenuName = ''
+
+function UpdateGameMenu()
+    gGameMenuName = GameMenuName()
+    gGameMenuOpen = not NOT_A_MENU[gGameMenuName]
+end
+
 -- Sort modes for TimerGroup:render.  Orders are described top-to-bottom on screen,
 -- independent of which way the panel grows.
 SortMode = {

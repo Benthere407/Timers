@@ -533,7 +533,10 @@ end
 local FRAME_PAD = 6   -- how far a style's frame sits outside the panel's area
 
 local function draw_rows(group, s, st, list, count, left, top, width, height)
-    local dl  = imgui.GetWindowDrawList()
+    -- ImGui's background list: drawn under every ImGui window (YunaUI's pieces, the Damage Meter,
+    -- this addon's settings, other addons' windows), so the panels sit behind them
+    local okb, bdl = pcall(imgui.GetBackgroundDrawList)
+    local dl  = (okb and bdl) or imgui.GetWindowDrawList()
     local now = os.clock()
     local gs  = group.settings
     local pad = gs.padding

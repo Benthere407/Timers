@@ -245,6 +245,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     auto_load_filter_set()
 
     gBuff.ShowPartyBuffs(timers.buffs.settings.party_buffs, timers.buffs.settings.party_buffs_combine)
+    UpdateGameMenu()
 
     gRecast.Update(timers.recasts.timers)
     gDebuff.Update(timers.debuffs.timers)

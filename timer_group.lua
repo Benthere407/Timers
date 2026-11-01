@@ -27,6 +27,7 @@ local themes    = require('themes')
 
 local default_settings = T{
     enabled = true,
+    hide_in_menus = true,   -- hide while a game menu is open (FFXI's menus can't be drawn over from under)
     -- 'default': Ashita fonts and primitives (everything below)
     -- 'yunaui':  drawn with ImGui in YunaUI's look (theme_yuna.lua, settings in yuna)
     theme = 'default',
@@ -416,7 +417,7 @@ end
 -- Settings that belong to a panel, not to its look: where it is, which way it grows,
 -- its order, whether it shows and its filters.  (background: only its look is copied, below.)
 local NOT_COPIED = { enabled = true, grow_up = true, sort_mode = true, sort_reverse = true,
-                     filter = true, background = true }
+                     filter = true, background = true, hide_in_menus = true }
 
 local function copy_value(v) return (type(v) == 'table') and table.table_copy(v) or v end
 
@@ -635,6 +636,12 @@ end
 ]]
 function TimerGroup:render(bars, opts)
     self:clear()
+
+    -- A game menu is open: the panel can't go under it, so it steps out of the way
+    if gGameMenuOpen and self.settings.hide_in_menus ~= false then
+        self:hide()
+        return
+    end
 
     -- Apply the include/exclude filter and drop timers that have been overdue too long.
     -- live: the names running right now, shown or not (the Filters page's Active view)
