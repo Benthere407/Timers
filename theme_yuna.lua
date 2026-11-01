@@ -75,8 +75,8 @@ yuna.DEFAULTS = T{
         sp     = T{ 1.00, 0.45, 0.75 },
         ja     = T{ 1.00, 0.85, 0.45 },
         ma     = T{ 0.55, 0.80, 1.00 },
-        buff   = T{ 0.40, 0.90, 0.72 },
-        debuff = T{ 0.80, 0.55, 1.00 },
+        buff   = T{ 1.00, 0.85, 0.45 },     -- (Durations and Debuffs: the abilities' colour, so every
+        debuff = T{ 1.00, 0.85, 0.45 },     --  panel looks the same in a theme)
     },
 }
 
@@ -97,18 +97,18 @@ yuna.STYLES = {
         bar_height = 6, row_gap = 4, frame = true, effects = false, time_bar_color = false,
         bar_border_visible = true, bar_border_color = 0xEB000000,
         kinds = T{ sp = T{ 1.00, 0.36, 0.62 }, ja = T{ 1.00, 1.00, 1.00 }, ma = T{ 0.40, 0.55, 1.00 },
-                   buff = T{ 1.00, 1.00, 1.00 }, debuff = T{ 0.40, 0.55, 1.00 } },
+                   buff = T{ 1.00, 1.00, 1.00 }, debuff = T{ 1.00, 1.00, 1.00 } },
     } },
     { id = 'yuna_vexp', label = 'YunaVEXP', key = 'yuna_vexp', bar = 'thin', fade = 'end', frame = 'vex', over = {
         bar_height = 3, row_gap = 6, frame = true, time_bar_color = false,
         bar_end = T{ 0.62, 0.40, 1.00 },
         kinds = T{ sp = T{ 1.00, 0.36, 0.62 }, ja = T{ 1.00, 0.42, 0.72 }, ma = T{ 0.40, 0.55, 1.00 },
-                   buff = T{ 1.00, 0.42, 0.72 }, debuff = T{ 0.86, 0.24, 0.86 } },
+                   buff = T{ 1.00, 0.42, 0.72 }, debuff = T{ 1.00, 0.42, 0.72 } },
     } },
     { id = 'yuna_hex', label = 'YunaHEX', key = 'yuna_hex', bar = 'thin', fade = 'shade', frame = 'hex', over = {
         bar_height = 3, row_gap = 6, frame = true, time_bar_color = false,
         name_font_color = 0xFFFFF7DB, time_font_color = 0xFFFFC257,     -- (Hex link's cream and gold)
-        kinds = T{ sp = GOLD2, ja = GOLD, ma = AZURE, buff = AZURE, debuff = GOLD },
+        kinds = T{ sp = GOLD2, ja = GOLD, ma = AZURE, buff = GOLD, debuff = GOLD },
     } },
     -- The game's own classic look: a blue FFXI menu window with its light bevelled edge,
     -- square bevelled gauges, plain white text with a black outline
