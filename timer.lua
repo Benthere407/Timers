@@ -241,8 +241,8 @@ end
 
 function Timer:get_height()
     local i_height = 0
-    if self.icon_id >= 0 and self.enable_icons then
-        i_height = math.floor(self.icon.height * self.icon_scale)
+    if self.enable_icons then   -- (every row as tall, icon or not)
+        i_height = math.floor(gIconSize * self.icon_scale)
     end
     local nf_height = self.name_font.background.height
     local tf_height = self.time_font.background.height
@@ -289,9 +289,14 @@ function Timer:update()
     self.bg.position_x = self.position_x
     self.bg.position_y = (self.position_y + self:get_height()) - self.bg.height
 
-    if self.icon_id >= 0 and self.enable_icons then
-        local icon_data = AshitaCore:GetResourceManager():GetStatusIconById(self.icon_id)
+    if self.enable_icons then
+        -- The icon's room is kept whether or not this timer has an icon, so every bar in every
+        -- panel is the same length
+        local icon_w = gIconSize * self.icon_scale
+        self.bg.width = self.bg.width - icon_w
+        self.bg.position_x = self.bg.position_x + icon_w
 
+        local icon_data = (self.icon_id >= 0) and AshitaCore:GetResourceManager():GetStatusIconById(self.icon_id) or nil
         if icon_data ~= nil then
             self.icon.visible = true
             self.icon.position_x = self.position_x + self.icon_offset_x
@@ -301,14 +306,8 @@ function Timer:update()
             self.icon.height = gIconSize
             self.icon.scale_x = self.icon_scale
             self.icon.scale_y = self.icon_scale
-
-            local icon_vec_4 = self:get_icon_vec4()
-
-            -- Adjust the background width for the width of the icon
-            self.bg.width = self.bg.width - icon_vec_4.width
-
-            -- Adjust the x pos of the background for the width of the icon
-            self.bg.position_x = self.bg.position_x + icon_vec_4.width
+        else
+            self.icon.visible = false
         end
     else
         self.icon.visible = false

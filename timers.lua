@@ -96,6 +96,22 @@ local function save_settings()
     settings.save('buff_timer_settings')
 end
 
+-- Every panel starts at the same place in its defaults, so a new install showed only one of
+-- them (the others under it).  While all three are still on one spot, put them side by side.
+local START_POS = { { 'recasts', 200 }, { 'buffs', 440 }, { 'debuffs', 680 } }
+local START_Y = 200
+
+local function spread_panels()
+    local r, b, d = timers.recasts.timers, timers.buffs.timers, timers.debuffs.timers
+    if not (r and b and d) then return end
+    local rp, bp, dp = r.settings.background, b.settings.background, d.settings.background
+    if not (rp.position_x == bp.position_x and bp.position_x == dp.position_x
+            and rp.position_y == bp.position_y and bp.position_y == dp.position_y) then return end
+    for _, e in ipairs(START_POS) do
+        timers[e[1]].timers:move_to(e[2], START_Y)
+    end
+end
+
 settings.register('recast_panel_settings', 'recast_panel_settings_update', function(s)
     if s ~= nil then timers.recasts.settings = s end
     settings.save('recast_panel_settings')
@@ -120,18 +136,21 @@ settings.register('recast_timer_settings', 'recast_timer_settings_update', funct
     if s ~= nil then timers.recasts.timers.settings = s end
     settings.save('recast_timer_settings')
     if timers.recasts.timers then timers.recasts.timers:apply_settings() end
+    spread_panels()
 end)
 
 settings.register('debuff_timer_settings', 'debuff_timer_settings_update', function(s)
     if s ~= nil then timers.debuffs.timers.settings = s end
     settings.save('debuff_timer_settings')
     if timers.debuffs.timers then timers.debuffs.timers:apply_settings() end
+    spread_panels()
 end)
 
 settings.register('buff_timer_settings', 'buff_timer_settings_update', function(s)
     if s ~= nil then timers.buffs.timers.settings = s end
     settings.save('buff_timer_settings')
     if timers.buffs.timers then timers.buffs.timers:apply_settings() end
+    spread_panels()
 end)
 
 --[[
@@ -158,6 +177,7 @@ ashita.events.register('load', 'load_cb', function ()
     timers.recasts.timers:apply_settings()
     timers.debuffs.timers:apply_settings()
     timers.buffs.timers:apply_settings()
+    spread_panels()
 
     gFilterSets.init(settings.load(T{ auto_load = true, sets = T{} }, 'filter_sets'))
 
