@@ -18,8 +18,9 @@
 --]]
 
 --[[
-    Themes: how the panels' bars, text and icons look (the layout - size, padding, background -
-    is each panel's own, not part of a theme).
+    Themes: how the panels' bars, text and icons look.  A custom theme also keeps each panel's
+    layout - row width, stretch, padding and background (see LAYOUT_KEYS) - so it looks the same
+    on every character; where a panel sits, its height and its order stay the character's own.
 
     Built-in themes (Default and the YunaUI styles) never change: their looks are the defaults in
     the code.  A custom theme is based on one of them ("base", whose renderer draws it) and holds
@@ -48,6 +49,11 @@ themes.DEFAULT_KEYS = { 'bar_height', 'bar_border_visible', 'bar_border_color', 
     'time_font_color', 'time_outline_color', 'name_font_offset_x', 'name_font_offset_y', 'timer_font_offset_x',
     'timer_font_offset_y', 'enable_icons', 'icon_scale', 'icon_offset_x', 'icon_offset_y',
     'bar_length', 'bar_offset_x', 'bar_offset_y', 'row_gap', 'name_align', 'time_align' }
+
+-- The layout a custom theme carries for each panel (its text is placed against the row's width,
+-- so a theme only looks right with its own), and the background's look within it
+local LAYOUT_KEYS = { 'bar_width', 'stretch', 'padding', 'enable_background', 'menu_bg' }
+local BG_KEYS = { 'color', 'border_visible', 'border_color', 'border_sizes' }
 
 local function copy(v) return (type(v) == 'table') and table.table_copy(v) or v end
 
@@ -203,7 +209,7 @@ local function serialize(v, indent)
 end
 
 local function text_of(e)
-    return serialize({ name = e.name, base = e.base, version = 2, panels = e.panels }, '')
+    return serialize({ name = e.name, base = e.base, version = 2, panels = e.panels, layouts = e.layouts }, '')
 end
 
 local function write(e)
@@ -231,6 +237,12 @@ local function read(name)
     for _, pid in ipairs(PANELS) do
         e.panels[pid] = fill(type(data.panels[pid]) == 'table' and data.panels[pid] or {}, e.base)
     end
+    if type(data.layouts) == 'table' then
+        e.layouts = {}
+        for _, pid in ipairs(PANELS) do
+            if type(data.layouts[pid]) == 'table' then e.layouts[pid] = data.layouts[pid] end
+        end
+    end
     e._written = text_of(e)
     return e
 end
@@ -248,14 +260,69 @@ function themes.load_all()
             if e then themes.custom[n] = e end
         end
     end
+    for _, g in pairs(themes.groups) do g._layout_theme = nil end   -- (each panel takes its theme's layout again)
+end
+
+-- A panel's layout now (the part of it a custom theme keeps)
+local function layout_of(g)
+    local s, L = g.settings, { background = {} }
+    if g.get_menu_bg then g:get_menu_bg() end
+    for _, k in ipairs(LAYOUT_KEYS) do L[k] = copy(s[k]) end
+    for _, k in ipairs(BG_KEYS) do L.background[k] = copy(s.background and s.background[k]) end
+    return L
+end
+
+-- Puts a theme's layout on a panel
+local function put_layout(g, L)
+    local s = g.settings
+    for _, k in ipairs(LAYOUT_KEYS) do
+        if L[k] ~= nil then s[k] = copy(L[k]) end
+    end
+    if type(L.background) == 'table' and s.background then
+        for _, k in ipairs(BG_KEYS) do
+            if L.background[k] ~= nil then s.background[k] = copy(L.background[k]) end
+        end
+        g.bg.color         = s.background.color
+        g.bg.border_visible = s.background.border_visible
+        g.bg.border_color  = s.background.border_color
+        g.bg.border_sizes  = s.background.border_sizes
+    end
+    g:update_timer_settings()
+end
+
+-- Keeps each panel's layout and its custom theme's together: a panel that changes to a custom
+-- theme takes the layout it keeps; a change to the layout (or a theme with none yet) is kept in it
+local function sync_layouts(capture)
+    for pid, g in pairs(themes.groups) do
+        local id = g.settings.theme or 'default'
+        local e = custom_of(id)
+        if g._layout_theme ~= id then
+            g._layout_theme, g._layout_seen = id, nil
+            local L = e and e.layouts and e.layouts[pid]
+            if L then
+                pcall(put_layout, g, L)
+                g._layout_seen = layout_of(g)
+            end
+        end
+        if e and capture then
+            local now = layout_of(g)
+            if not equal(now, g._layout_seen or {}) then
+                e.layouts = e.layouts or {}
+                e.layouts[pid] = now
+                g._layout_seen = copy(now)
+            end
+        end
+    end
 end
 
 -- Writes the custom themes that changed since they were last written (each second at most)
 local last_tick = 0
 function themes.tick(force)
+    pcall(sync_layouts, false)
     local now = os.clock()
     if not force and now - last_tick < 1 then return end
     last_tick = now
+    pcall(sync_layouts, true)
     for _, e in pairs(themes.custom) do
         if text_of(e) ~= e._written then pcall(write, e) end
     end

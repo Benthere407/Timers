@@ -3,7 +3,7 @@
 Timer bars for your **recasts**, the buffs you cast (**Durations**) and the debuffs you land on monsters (**Debuffs**),
 each in its own panel you can place, size, sort, filter and theme.
 
-Version 2.0.3, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
+Version 2.0.4, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, where the themes use ImGui's own font.
 
 ## Install
 
@@ -19,6 +19,13 @@ Version 2.0.3, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, w
 | `/timers` | Open or close the settings window |
 | `/timers lock` / `/timers unlock` | Stop or allow moving the panels |
 | Shift + drag | Move a panel |
+
+## What's new in 2.0.4
+
+- **Themes keep their layout**: a custom theme now also keeps each panel's Row width, Stretch, padding and
+  background (on/off, colour, border), so it looks the same on every character that picks it. Changing those
+  on the Layout page saves them into the theme. Where a panel sits, its Max height, grow direction and order
+  stay each character's own.
 
 ## What's new in 2.0.3
 
