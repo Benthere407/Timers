@@ -24,6 +24,8 @@ Version 2.0.5, made for CatsEyeXI (VanaCore). It also runs on plain Ashita v4, w
 
 - **Copy to your other client** (Theme page): gives every other client logged in on this PC this client's panel
   themes and layout, and makes them current there. It asks once to confirm, and can copy panel positions too.
+- **Copy filter sets** (Filter Sets page): adds all your saved sets to your other characters on this PC, right away
+  if logged in, else at their next login. A set there with the same name is replaced; their other sets stay.
 - **Test options** page: how many sample timers Test shows (1 to 10, 5 by default), and switches for the gold
   panel names and the outlines.
 

@@ -161,4 +161,102 @@ function M.set_auto_load(flag)
     persist()
 end
 
+--------------------------------------------------------------------------------
+-- Copy to your other characters: one client writes all its sets to themes\filter_push.txt, and
+-- every other character adds them to its own, now if it is running, else at its next login
+-- (each character keeps the stamp of the last copy it took).  Those that took it say so in
+-- themes\filter_push_ack.txt.
+--------------------------------------------------------------------------------
+M.pushed = nil       -- the stamp of the copy this client sent
+M.push_took = {}     -- the characters that took it
+
+local function push_path() return gThemes.dir() .. 'filter_push.txt' end
+local function ack_path() return gThemes.dir() .. 'filter_push_ack.txt' end
+
+local function push_stamp()
+    local f = io.open(push_path(), 'r')
+    if not f then return nil end
+    local line = f:read('*l')
+    f:close()
+    return line and line:match('^%-%- (%S+)')
+end
+
+local function clean_set(s)
+    local e = { name = tostring(s.name), job = tonumber(s.job) or 0 }
+    for _, kind in ipairs(M.KINDS) do
+        local f = type(s[kind]) == 'table' and s[kind] or {}
+        e[kind] = { only_checked = (f.only_checked == true), show = copy_list(f.show), hide = copy_list(f.hide) }
+    end
+    return e
+end
+
+-- Sends every saved set.  Returns true, or false and why
+function M.push()
+    local d = { from = gThemes.my_name() or 'Another client', sets = {} }
+    for _, s in ipairs(M.data.sets) do d.sets[#d.sets + 1] = clean_set(s) end
+    local stamp = ('%d-%d'):format(os.time(), math.random(100000, 999999))
+    os.remove(ack_path())
+    local f, err = io.open(push_path(), 'w')
+    if not f then return false, tostring(err) end
+    f:write('-- ', stamp, '\n')
+    f:write('return ', gThemes.serialize(d, ''), '\n')
+    f:close()
+    M.data.push_seen, M.pushed, M.push_took = stamp, stamp, {}
+    persist()
+    return true
+end
+
+-- A set here with the same name is replaced (keeping its job when the new one has none); others stay
+local function merge(sets)
+    for _, s in ipairs(sets) do
+        if type(s) == 'table' and s.name then
+            local e = clean_set(s)
+            local old, idx = M.get(e.name)
+            if old then
+                if e.job == 0 then e.job = old.job or 0 end
+                M.data.sets[idx] = e
+            else
+                table.insert(M.data.sets, e)
+            end
+            if e.job > 0 then M.set_job(e.name, e.job, true) end
+        end
+    end
+end
+
+-- Each second: a new copy to take, and who took the one sent from here
+function M.poll()
+    if not M.data then return end
+    local name = gThemes.my_name()
+    if not name then return end                     -- (no character yet: these aren't anyone's sets)
+    local stamp = push_stamp()
+    if stamp and stamp ~= M.data.push_seen then
+        local fn = loadfile(push_path())
+        if not fn then return end                   -- (still being written: next time)
+        setfenv(fn, {})
+        local ok, d = pcall(fn)
+        if not ok or type(d) ~= 'table' or type(d.sets) ~= 'table' then return end
+        merge(d.sets)
+        M.data.push_seen = stamp
+        persist()
+        print(('[Timers] Added %d filter set(s) from %s: see Filter Sets.'):format(#d.sets, tostring(d.from)))
+        local f = io.open(ack_path(), 'a')
+        if f then
+            f:write(stamp, '|', name, '\n')
+            f:close()
+        end
+    end
+    if M.pushed then
+        local f = io.open(ack_path(), 'r')
+        if f then
+            local took = {}
+            for line in f:lines() do
+                local s, n = line:match('^(%S+)|(.+)$')
+                if s == M.pushed then took[#took + 1] = n end
+            end
+            f:close()
+            M.push_took = took
+        end
+    end
+end
+
 return M

@@ -869,6 +869,32 @@ local function page_sets()
     local cur_job = AshitaCore:GetMemoryManager():GetPlayer():GetMainJob()
     local cur_abbr = abbr[cur_job]
 
+    -- Copy to the other characters: the button, then a confirmation with Yes clear of where it was
+    vc.section('COPY TO YOUR OTHER CLIENT')
+    vc.note('Adds all your saved sets to your other characters on this PC: right away if logged in, else at their next login. They can then load them here. Their other sets stay, and their current filters don\'t change.')
+    if gTh.fs_push then
+        imgui.TextColored(C.gold, 'A set there with the same name is replaced. This can\'t be undone.')
+        if vc.button('Cancel##fs_pushx', nil, 210) then gTh.fs_push = nil end
+        imgui.SameLine()
+        if vc.button('Yes, copy now##fs_push2', 'danger', 140) then
+            gTh.fs_push = nil
+            local ok, err = gFilterSets.push()
+            gSetMessage = ok and '' or ('Could not copy them: %s'):format(tostring(err))
+        end
+    elseif #gFilterSets.data.sets == 0 then
+        imgui.TextColored(C.mute, 'No saved sets to copy yet.')
+    elseif vc.button('Copy to other client##fs_push', 'primary', 200) then
+        gTh.fs_push = true
+    end
+    if gFilterSets.pushed then
+        if #gFilterSets.push_took > 0 then
+            imgui.TextColored(C.good, ('Copied to %s.'):format(table.concat(gFilterSets.push_took, ', ')))
+        else
+            imgui.TextColored(C.mute, 'Sent. No client has answered yet: a logged-in one needs this version of Timers.')
+        end
+    end
+
+    vc.section('FILTER SETS')
     vc.note('A filter set stores the Recast, Duration and Debuff filters together. Save one per job, bind it to that job, and it is loaded when you change to that job.')
     local v = switch('fs_auto', 'Load on job change', gFilterSets.data.auto_load, 'When your main job changes, load the filter set bound to it (if there is one).')
     if v ~= nil then gFilterSets.set_auto_load(v) end

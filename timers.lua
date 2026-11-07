@@ -183,7 +183,7 @@ ashita.events.register('load', 'load_cb', function ()
     timers.buffs.timers:apply_settings()
     spread_panels()
 
-    gFilterSets.init(settings.load(T{ auto_load = true, sets = T{} }, 'filter_sets'))
+    gFilterSets.init(settings.load(T{ auto_load = true, sets = T{}, push_seen = '' }, 'filter_sets'))
 
     local pm = AshitaCore:GetPointerManager();
     if (pm:Get(REALUTCSTAMP_ID) == 0) then

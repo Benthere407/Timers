@@ -6,3 +6,5 @@ themes/*.lua
 themes/start.txt
 themes/push.txt
 themes/push_ack.txt
+themes/filter_push.txt
+themes/filter_push_ack.txt

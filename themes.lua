@@ -208,6 +208,8 @@ local function serialize(v, indent)
     return 'nil'
 end
 
+themes.serialize = serialize
+
 local function text_of(e)
     return serialize({ name = e.name, base = e.base, version = 2, panels = e.panels, layouts = e.layouts }, '')
 end
@@ -326,7 +328,10 @@ function themes.tick(force)
     for _, e in pairs(themes.custom) do
         if text_of(e) ~= e._written then pcall(write, e) end
     end
-    if not force then pcall(themes.poll_push) end
+    if not force then
+        pcall(themes.poll_push)
+        pcall(gFilterSets.poll)
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -510,9 +515,10 @@ local push_seen = nil     -- the last push.txt this client saw
 local function push_path() return themes.dir() .. 'push.txt' end
 local function ack_path() return themes.dir() .. 'push_ack.txt' end
 
-local function my_name()
+-- This client's character (nil before one is logged in)
+function themes.my_name()
     local ok, n = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberName(0) end)
-    return (ok and n and n ~= '') and n or 'Another client'
+    return (ok and n and n ~= '') and n or nil
 end
 
 -- The stamp of the copy waiting in push.txt (its first line)
@@ -528,7 +534,7 @@ end
 function themes.push(with_place)
     themes.tick(true)                               -- (so its theme files are up to date on disk)
     local stamp = ('%d-%d'):format(os.time(), math.random(100000, 999999))
-    local d = { from = my_name(), panels = {} }
+    local d = { from = themes.my_name() or 'Another client', panels = {} }
     for _, pid in ipairs(PANELS) do
         local g = themes.groups[pid]
         if g then
@@ -591,7 +597,7 @@ local function poll_push()
         print(('[Timers] Took the panels\' theme and layout from %s.'):format(tostring(d.from)))
         local f = io.open(ack_path(), 'a')
         if f then
-            f:write(stamp, '|', my_name(), '\n')
+            f:write(stamp, '|', themes.my_name() or 'Another client', '\n')
             f:close()
         end
     end
