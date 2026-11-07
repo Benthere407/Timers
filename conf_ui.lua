@@ -806,6 +806,32 @@ local function page_theme()
     end
     tip('For theme files copied in by hand (or changed outside the game).')
 
+    -- Copy to the other client: the button, then a confirmation with Yes clear of where it was
+    vc.section('COPY TO YOUR OTHER CLIENT')
+    vc.note('Gives every other client logged in on this PC the theme and layout of this one\'s three panels. Filters stay as they are, and a client that isn\'t running isn\'t changed.')
+    if gTh.push then
+        imgui.TextColored(C.gold, gTh.push_place and 'Replace the other client\'s panel themes, layout and positions? This can\'t be undone.'
+                                                  or 'Replace the other client\'s panel themes and layout? This can\'t be undone.')
+        if vc.button('Cancel##th_pushx', nil, 210) then gTh.push = nil end
+        imgui.SameLine()
+        if vc.button('Yes, copy now##th_push2', 'danger', 140) then
+            gTh.push = nil
+            local ok, err = themes.push(gTh.push_place)
+            if not ok then th_say(false, ('Could not copy them: %s'):format(tostring(err))) end
+        end
+    else
+        local v = switch('th_push_place', 'Panel positions too', gTh.push_place == true, 'Also copy where each panel sits, its Max height and which way it grows.')
+        if v ~= nil then gTh.push_place = v end
+        if vc.button('Copy to other client##th_push', 'primary', 200) then gTh.push = true end
+    end
+    if themes.pushed then
+        if #themes.push_took > 0 then
+            imgui.TextColored(C.good, ('Copied to %s.'):format(table.concat(themes.push_took, ', ')))
+        else
+            imgui.TextColored(C.mute, 'Sent. No other client has answered yet: it needs this version of Timers loaded.')
+        end
+    end
+
     vc.section('BUILT-IN THEMES')
     vc.stat('Default', 'Ashita\'s fonts and bars', nil, 110)
     vc.stat('YunaUI', 'YunaUI\'s Timers: thin glowing bars, the time in the bar\'s colour', nil, 110)
@@ -960,7 +986,7 @@ local PREVIEW_DATA = {
         kinds = { Haste = 'ma', Stoneskin = 'ma', Blink = 'ma', ['Meikyo Shisui'] = 'sp' },
     },
     durations = {
-        names   = { 'Haste', 'Protect', 'Shell', 'Regen', 'Refresh', 'Berserk', 'Blink', 'Phalanx', 'Stoneskin' },
+        names   = { 'Haste', 'Protect', 'Shell', 'Regen', 'Refresh', 'Berserk', 'Blink', 'Phalanx', 'Stoneskin', 'Aquaveil' },
         targets = { 'You', 'Tankguy', 'Healbot', 'Nukerdude' },
     },
     debuffs = {
@@ -969,10 +995,10 @@ local PREVIEW_DATA = {
     },
 }
 
-local function build_preview(kind)
+local function build_preview(kind, rows)
     local data = PREVIEW_DATA[kind]
 
-    -- Shuffle a copy of the names and take 5
+    -- Shuffle a copy of the names and take as many as Test shows
     local pool = {}
     for i, n in ipairs(data.names) do pool[i] = n end
     for i = #pool, 2, -1 do
@@ -981,7 +1007,7 @@ local function build_preview(kind)
     end
 
     local items = {}
-    for i = 1, 5 do
+    for i = 1, math.min(rows, #pool) do
         local name = pool[i]
         local target = data.targets and data.targets[math.random(#data.targets)] or nil
 
@@ -1003,21 +1029,58 @@ local function build_preview(kind)
     return items
 end
 
-local function set_testing(on)
-    local groups = {
+local function test_groups()
+    return {
         recasts = ui.timers.recasts.timers,
         durations = ui.timers.buffs.timers,
         debuffs = ui.timers.debuffs.timers,
     }
+end
+
+-- The gold names and outlines on the running sample timers, as the Test settings say
+local function mark_test()
+    local ps = ui.timers.recasts.settings
     local titles = { recasts = 'Recasts', durations = 'Buffs', debuffs = 'Debuffs' }
-    for kind, group in pairs(groups) do
+    for kind, group in pairs(test_groups()) do
+        if group.preview then
+            group.preview.title = (ps.test_titles ~= false) and titles[kind] or nil
+            group.preview.outline = ps.test_outlines ~= false
+        end
+    end
+end
+
+local function set_testing(on)
+    local rows = tonumber(ui.timers.recasts.settings.test_rows) or 5
+    for kind, group in pairs(test_groups()) do
         if on then
-            group:start_preview(build_preview(kind), titles[kind])
+            group:start_preview(build_preview(kind, rows))
         else
             group:stop_preview()
         end
     end
+    mark_test()
     ui.testing = on
+end
+
+local function page_test()
+    vc.title('Test', 'sample timers in each panel')
+    if vc.button((ui.testing and 'Stop test' or 'Start test') .. '##test_run', (not ui.testing) and 'primary' or nil, 160) then
+        set_testing(not ui.testing)
+    end
+
+    vc.section('SAMPLE TIMERS')
+    local ps = ui.timers.recasts.settings
+    local rows = slider('test_rows', 'How many', tonumber(ps.test_rows) or 5, 1, 10, 1, '%d', 'How many timers Test puts in each panel. A panel\'s Max height can still leave some off.')
+    if rows then
+        ps.test_rows = rows
+        if ui.testing then set_testing(true) end
+    end
+
+    vc.section('MARKINGS')
+    local on = switch('test_titles', 'Panel names', ps.test_titles ~= false, 'The gold Recasts, Buffs and Debuffs over each panel while Test runs.')
+    if on ~= nil then ps.test_titles = on; mark_test() end
+    on = switch('test_outlines', 'Outlines', ps.test_outlines ~= false, 'The gold line round each panel and the dashed Max height box while Test runs.')
+    if on ~= nil then ps.test_outlines = on; mark_test() end
 end
 
 --------------------------------------------------------------------------------
@@ -1167,8 +1230,8 @@ end
 --------------------------------------------------------------------------------
 -- Window
 --------------------------------------------------------------------------------
-local PAGES = { about = page_about, theme = page_theme, sets = page_sets, arrange = page_arrange }
-local PAGE_NAME = { about = 'About', theme = 'Theme', sets = 'Filter Sets', arrange = 'Arrange' }
+local PAGES = { about = page_about, theme = page_theme, sets = page_sets, arrange = page_arrange, test = page_test }
+local PAGE_NAME = { about = 'About', theme = 'Theme', sets = 'Filter Sets', arrange = 'Arrange', test = 'Test' }
 for _, p in ipairs(PANELS) do
     for _, sp in ipairs(SUBPAGES) do
         local id = p.id .. '.' .. sp[1]
@@ -1181,7 +1244,10 @@ local function sidebar(nav)
     if nav.head('test', ui.testing and 'Stop test' or 'Test: fill panels', ui.testing, 'test') then
         set_testing(not ui.testing)
     end
-    nav.tip('Fill each panel with 5 sample timers so you can see how it looks. They loop, and stop when this window closes.')
+    nav.tip('Fill each panel with sample timers so you can see how it looks. They loop, and stop when this window closes.')
+    nav.gap()
+    if nav.head('gear', 'Test options', win.page == 'test', 'test_opts') then win.page = 'test' end
+    nav.tip('How many sample timers, and the gold names and outlines')
     nav.gap()
     if nav.head('about', 'About', win.page == 'about') then win.page = 'about' end
     nav.gap()

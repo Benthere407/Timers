@@ -326,6 +326,7 @@ function themes.tick(force)
     for _, e in pairs(themes.custom) do
         if text_of(e) ~= e._written then pcall(write, e) end
     end
+    if not force then pcall(themes.poll_push) end
 end
 
 --------------------------------------------------------------------------------
@@ -497,6 +498,118 @@ local function apply_start()
     end
 end
 
+--------------------------------------------------------------------------------
+-- Copy to another client: one client writes its panels' themes and layouts to themes\push.txt,
+-- and every other client running on this PC takes them when it sees the file change (a client
+-- that starts later does not).  Those that took it say so in themes\push_ack.txt.
+--------------------------------------------------------------------------------
+themes.pushed = nil       -- the stamp of the copy this client sent
+themes.push_took = {}     -- the characters that took it
+local push_seen = nil     -- the last push.txt this client saw
+
+local function push_path() return themes.dir() .. 'push.txt' end
+local function ack_path() return themes.dir() .. 'push_ack.txt' end
+
+local function my_name()
+    local ok, n = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberName(0) end)
+    return (ok and n and n ~= '') and n or 'Another client'
+end
+
+-- The stamp of the copy waiting in push.txt (its first line)
+local function push_stamp()
+    local f = io.open(push_path(), 'r')
+    if not f then return nil end
+    local line = f:read('*l')
+    f:close()
+    return line and line:match('^%-%- (%S+)')
+end
+
+-- with_place: also where each panel sits, its Max height and which way it grows
+function themes.push(with_place)
+    themes.tick(true)                               -- (so its theme files are up to date on disk)
+    local stamp = ('%d-%d'):format(os.time(), math.random(100000, 999999))
+    local d = { from = my_name(), panels = {} }
+    for _, pid in ipairs(PANELS) do
+        local g = themes.groups[pid]
+        if g then
+            local p = { theme = g.settings.theme or 'default', layout = layout_of(g) }
+            if with_place then
+                local bg = g.settings.background
+                p.place = { x = bg.position_x, y = bg.position_y, max_height = g.settings.max_height,
+                            grow_up = g.settings.grow_up and true or false }
+            end
+            d.panels[pid] = p
+        end
+    end
+    os.remove(ack_path())
+    local f, err = io.open(push_path(), 'w')
+    if not f then return false, tostring(err) end
+    f:write('-- ', stamp, '\n')
+    f:write('return ', serialize(d, ''), '\n')
+    f:close()
+    push_seen, themes.pushed, themes.push_took = stamp, stamp, {}
+    return true
+end
+
+local function take_push(d)
+    themes.load_all()                               -- (the sender's theme may be new, or changed)
+    for _, pid in ipairs(PANELS) do
+        local g, p = themes.groups[pid], d.panels[pid]
+        if g and type(p) == 'table' then
+            if valid(p.theme) then
+                g.settings.theme = p.theme
+            else
+                print(('[Timers] No theme file for "%s": the %s panel keeps its theme.'):format(themes.label(p.theme), pid))
+            end
+            if type(p.layout) == 'table' then put_layout(g, p.layout) end
+            g._layout_theme, g._layout_seen = g.settings.theme or 'default', layout_of(g)
+            if type(p.place) == 'table' then
+                g.settings.max_height = p.place.max_height or g.settings.max_height
+                g.settings.grow_up = p.place.grow_up
+                g:move_to(p.place.x, p.place.y)
+            end
+        end
+    end
+    if themes.on_take then themes.on_take() end     -- (saved now: it stays the current theme after a crash)
+end
+
+-- Each second: a new copy from another client to take, and who took the one sent from here
+local function poll_push()
+    local stamp = push_stamp()
+    if stamp and stamp ~= push_seen then
+        local fn = loadfile(push_path())
+        if not fn then return end                   -- (still being written: next time)
+        setfenv(fn, {})
+        local ok, d = pcall(fn)
+        if not ok or type(d) ~= 'table' or type(d.panels) ~= 'table' then return end
+        push_seen = stamp
+        local took, err = pcall(take_push, d)
+        if not took then
+            print(('[Timers] Could not take the settings: %s'):format(tostring(err)))
+            return
+        end
+        print(('[Timers] Took the panels\' theme and layout from %s.'):format(tostring(d.from)))
+        local f = io.open(ack_path(), 'a')
+        if f then
+            f:write(stamp, '|', my_name(), '\n')
+            f:close()
+        end
+    end
+    if themes.pushed then
+        local f = io.open(ack_path(), 'r')
+        if f then
+            local took = {}
+            for line in f:lines() do
+                local s, n = line:match('^(%S+)|(.+)$')
+                if s == themes.pushed then took[#took + 1] = n end
+            end
+            f:close()
+            themes.push_took = took
+        end
+    end
+end
+themes.poll_push = poll_push
+
 -- groups: { recasts = TimerGroup, durations = TimerGroup, debuffs = TimerGroup }
 function themes.init(groups)
     themes.groups = groups
@@ -509,6 +622,8 @@ function themes.init(groups)
     end
     pcall(themes.read_start)
     pcall(apply_start)
+    local ok, stamp = pcall(push_stamp)             -- (a copy sent before this client started isn't for it)
+    if ok then push_seen = stamp end
 end
 
 return themes

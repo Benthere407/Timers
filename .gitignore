@@ -4,3 +4,5 @@ themes/*.lua
 # Release packages
 *.zip
 themes/start.txt
+themes/push.txt
+themes/push_ack.txt

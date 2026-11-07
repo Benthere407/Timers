@@ -19,7 +19,7 @@
 
 addon.name      = 'Timers';
 addon.author    = 'Shiyo, The Mystic, Benthere407';
-addon.version   = '2.0.4';
+addon.version   = '2.0.5';
 addon.desc      = 'Displays the duration of spells and abilities you\'ve used';
 addon.link      = 'https://github.com/Benthere407/Timers';
 
@@ -51,6 +51,9 @@ local default_settings = T{
     party_buffs = true,
     party_buffs_combine = true,
     ui_scale = 1.0, -- the settings window's scale (kept in the recast panel's settings)
+    test_rows = 5,          -- the Test tool: sample timers in each panel, and what it marks them with
+    test_titles = true,     -- (kept in the recast panel's settings, as ui_scale)
+    test_outlines = true,
 
     -- Timers movement variables..
     move = T{
@@ -189,6 +192,7 @@ ashita.events.register('load', 'load_cb', function ()
 
     -- the theme files, and any look this character's settings kept for a built-in theme
     gThemes.init({ recasts = timers.recasts.timers, durations = timers.buffs.timers, debuffs = timers.debuffs.timers })
+    gThemes.on_take = save_settings
 
     -- VanaCore: the game's windows (menus, item details, shops) drawn over this addon's windows where
     -- they meet, so the panels sit behind them (the player's [client] menus.ontop=0 turns it off)

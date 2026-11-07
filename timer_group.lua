@@ -623,8 +623,8 @@ end
 
 -- items: array of { name, duration (frames), target, icon_id, mode, start_time, overdue, blink_last }
 -- title: shown over the panel while the samples run
-function TimerGroup:start_preview(items, title)
-    self.preview = { t0 = os.clock(), items = items, title = title }
+function TimerGroup:start_preview(items)
+    self.preview = { t0 = os.clock(), items = items }   -- (.title, .outline: the Test settings, set by conf_ui)
 end
 
 function TimerGroup:stop_preview()
@@ -785,8 +785,10 @@ function TimerGroup:render(bars, opts)
 
     -- Test: the panel's outline, the most it can grow to (Max height) and its name, to help place it
     if self.preview then
-        local max_h = self.settings.max_height
-        yuna.test_outline(anchor_x, top_y, self.bg.width, total_h, grow_up and (anchor_y - max_h) or anchor_y, max_h)
+        if self.preview.outline then
+            local max_h = self.settings.max_height
+            yuna.test_outline(anchor_x, top_y, self.bg.width, total_h, grow_up and (anchor_y - max_h) or anchor_y, max_h)
+        end
         if self.preview.title then
             if themed then
                 yuna.title(self, self.preview.title, anchor_x, top_y, look, base)
